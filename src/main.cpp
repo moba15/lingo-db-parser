@@ -16,7 +16,7 @@ main (int argc, char *argv[])
       drv.trace_scanning = true;
     else if (!drv.parse (argv[i])) {
       std::cout << "\nresult: " << std::endl;
-      std::cout << drv.result->toString() << std::endl;
+      
     }
     else
       res = 1;
