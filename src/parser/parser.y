@@ -3,7 +3,7 @@
 %header
 
 %define api.token.raw
-
+%define api.namespace    { lingodb_parser }
 %define api.token.constructor
 %define api.value.type variant
 %define parse.assert
@@ -179,7 +179,7 @@ common_value_expr:
     IDENTIFIER
 %%
 void
-yy::parser::error (const location_type& l, const std::string& m)
+lingodb_parser::parser::error (const location_type& l, const std::string& m)
 {
   std::cerr << l << ": " << m << '\n';
 }

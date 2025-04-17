@@ -102,8 +102,8 @@
 
 %{
   // A number symbol corresponding to the value in S.
-  yy::parser::symbol_type
-  make_NUMBER (const std::string &s, const yy::parser::location_type& loc);
+  lingodb_parser::parser::symbol_type
+  make_NUMBER (const std::string &s, const lingodb_parser::parser::location_type& loc);
 %}
 
 
@@ -125,38 +125,38 @@ identifier      {ident_start}{ident_cont}*
 %%
 %{
   // A handy shortcut to the location held by the driver.
-  yy::location& loc = drv.location;
+  lingodb_parser::location& loc = drv.location;
   // Code run each time yylex is called.
   loc.step ();
 %}
 
-"("             { return yy::parser::make_LP(loc); }
-")"             { return yy::parser::make_RP(loc); }
-"["             { return yy::parser::make_LB(loc); }
-"]"             { return yy::parser::make_RB(loc); }
-"."             { return yy::parser::make_DOT(loc); }
-","             { return yy::parser::make_COMMA(loc); }
-";"             { return yy::parser::make_SEMICOLON(loc); }
-"+"             { return yy::parser::make_PLUS(loc); }
-"-"             { return yy::parser::make_MINUS(loc); }
-"/"             { return yy::parser::make_SLASH(loc); }
-"*"             { return yy::parser::make_STAR(loc); }
-"="             { return yy::parser::make_EQUAL(loc); }
-"<>"            { return yy::parser::make_NOT_EQUAL(loc); }
-"<="            { return yy::parser::make_LESS_EQUAL(loc); }
-"<"             { return yy::parser::make_LESS(loc); }
-">="            { return yy::parser::make_GREATER_EQUAL(loc); }
-">"             { return yy::parser::make_GREATER(loc); }
-"||"            { return yy::parser::make_CONCAT(loc); }
-"#"             { return yy::parser::make_YYEOF(loc);}
-select          { return yy::parser::make_SELECT(loc); }
-from            { return yy::parser::make_FROM(loc); }
-<<EOF>>    return yy::parser::make_YYEOF (loc);
+"("             { return lingodb_parser::parser::make_LP(loc); }
+")"             { return lingodb_parser::parser::make_RP(loc); }
+"["             { return lingodb_parser::parser::make_LB(loc); }
+"]"             { return lingodb_parser::parser::make_RB(loc); }
+"."             { return lingodb_parser::parser::make_DOT(loc); }
+","             { return lingodb_parser::parser::make_COMMA(loc); }
+";"             { return lingodb_parser::parser::make_SEMICOLON(loc); }
+"+"             { return lingodb_parser::parser::make_PLUS(loc); }
+"-"             { return lingodb_parser::parser::make_MINUS(loc); }
+"/"             { return lingodb_parser::parser::make_SLASH(loc); }
+"*"             { return lingodb_parser::parser::make_STAR(loc); }
+"="             { return lingodb_parser::parser::make_EQUAL(loc); }
+"<>"            { return lingodb_parser::parser::make_NOT_EQUAL(loc); }
+"<="            { return lingodb_parser::parser::make_LESS_EQUAL(loc); }
+"<"             { return lingodb_parser::parser::make_LESS(loc); }
+">="            { return lingodb_parser::parser::make_GREATER_EQUAL(loc); }
+">"             { return lingodb_parser::parser::make_GREATER(loc); }
+"||"            { return lingodb_parser::parser::make_CONCAT(loc); }
+"#"             { return lingodb_parser::parser::make_YYEOF(loc);}
+select          { return lingodb_parser::parser::make_SELECT(loc); }
+from            { return lingodb_parser::parser::make_FROM(loc); }
+<<EOF>>    return lingodb_parser::parser::make_YYEOF (loc);
 {identifier}    {
                     std::string ident(yytext);
                     std::transform(ident.begin(), ident.end(), ident.begin(),
                         [](unsigned char c){ return std::tolower(c); });
-                    return yy::parser::make_IDENTIFIER(std::move(ident), loc);
+                    return lingodb_parser::parser::make_IDENTIFIER(std::move(ident), loc);
                 }
 %%
 

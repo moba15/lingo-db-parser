@@ -4,17 +4,17 @@ namespace nodes {
   class NodeFactory {
 
 	protected:
-		std::unordered_map<void *, yy::location> locations;
+		std::unordered_map<void *, lingodb_parser::location> locations;
 	public:
 		template<class T, class... Args>
-		auto node(yy::location loc, Args... args) -> std::shared_ptr<T> {
+		auto node(lingodb_parser::location loc, Args... args) -> std::shared_ptr<T> {
 			auto node = std::make_shared<T>(std::forward<Args>(args)...);
 
 			locations[node.get()] = loc;
 			return std::move(node);
 		}
   		template<class T>
-  		auto list(yy::location loc) -> std::vector<T>  {
+  		auto list(lingodb_parser::location loc) -> std::vector<T>  {
 			std::vector<T> nodes{};
 			return nodes;
 		}
