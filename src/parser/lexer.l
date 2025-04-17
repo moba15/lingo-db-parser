@@ -1,22 +1,3 @@
-/* Scanner for calc++.   -*- C++ -*-
-
-   Copyright (C) 2005-2015, 2018-2021 Free Software Foundation, Inc.
-
-   This file is part of Bison, the GNU Compiler Compiler.
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
-
 %{ /* -*- C++ -*- */
 # include <cerrno>
 # include <climits>
@@ -129,7 +110,6 @@ identifier      {ident_start}{ident_cont}*
   // Code run each time yylex is called.
   loc.step ();
 %}
-
 "("             { return lingodb_parser::parser::make_LP(loc); }
 ")"             { return lingodb_parser::parser::make_RP(loc); }
 "["             { return lingodb_parser::parser::make_LB(loc); }
@@ -149,8 +129,19 @@ identifier      {ident_start}{ident_cont}*
 ">"             { return lingodb_parser::parser::make_GREATER(loc); }
 "||"            { return lingodb_parser::parser::make_CONCAT(loc); }
 "#"             { return lingodb_parser::parser::make_YYEOF(loc);}
-select          { return lingodb_parser::parser::make_SELECT(loc); }
+all             { return lingodb_parser::parser::make_ALL(loc); }
+as              { return lingodb_parser::parser::make_AS(loc);}
+
 from            { return lingodb_parser::parser::make_FROM(loc); }
+
+where           { return lingodb_parser::parser::make_WHERE(loc); }
+
+join            { return lingodb_parser::parser::make_JOIN(loc); }
+
+on              {return lingodb_parser::parser::make_ON(loc);}
+
+select          { return lingodb_parser::parser::make_SELECT(loc); }
+
 <<EOF>>    return lingodb_parser::parser::make_YYEOF (loc);
 {identifier}    {
                     std::string ident(yytext);
