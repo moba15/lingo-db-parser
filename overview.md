@@ -1,0 +1,143 @@
+# Nodes
+## SelectStmt
+- select_list: ParsedExpression[]
+- from_table: TableRef
+- where_clause: ParsedExpression
+- groups: GroupByNode
+- having: ParsedExpression
+- aggregate_handling: AggregateHandling
+- sample: SampleOption
+
+## TableRef
+The TableRef represents any table source. This can be a reference to a base table, but it can also be a join, a table-producing function or a subquery.
+- type: TableReferenceType
+- alias: string
+- sample: SampleOptions
+- external_dependency: ExternalDependency 
+- column_name_alias: string[] (Aliases for the column names)
+
+## BaseExpression 
+The BaseExpression class is a base class that can represent any expression
+- type : ExpressionType
+- expression_class: ExpressionClass
+- alias: string
+
+
+## ParsedExpression : BaseExpression
+The ParsedExpression represents an expression within a SQL statement. This can be e.g., a reference to a column, an addition operator or a constant value. The type of the ParsedExpression indicates what it represents, e.g., a comparison is represented as a ComparisonExpression
+### StarExpression : ParsedExpression
+Represents a * expression in the SELECT clause
+- relation_name : string (releation name in case of tbl.*  or empty if normal *)
+- exclude_list : qualified_column_set_t
+- replace_list : ParsedExpression{}
+- rename_list : string{}
+- expr: ParsedExpression (The expression to select the columns (regular expression or list))
+- columns : bool 
+
+### ConstantExpression : ParsedExpression
+- val : Value
+
+### ComparisonExpression : ParsedExpression
+ComparisonExpression represents a boolean comparison (e.g. =, >=, <>). Always returns a boolean
+- left: ParsedExpression
+- right: ParsedExpression
+
+### OperatorExpression : ParsedExpression
+Represents a built-in operator expression IS NULL, IN, IS NOT NULL, NOT IN 
+- children : ParsedExpression[] 
+
+### SubqueryExpression : ParsedExpression
+- subquery : SelectStatement 
+- subquery_type: SubQueryType
+- comparison_type : ExpressionType (he comparison type of the child expression with the subquery (in case of ANY, ALL operators), empty otherwise)
+### BetweenExpression : ParsedExpression
+` 
+SELECT column_name(s)
+FROM table_name
+WHERE column_name BETWEEN value1 AND value2;`
+
+- input : ParsedExpression
+- lower: ParsedExpression
+- upper: ParsedExpression
+### ColumnRefExpression : ParsedExpression
+Represents a reference to a column from either the FROM clause or from an alias
+- column_names : string[]
+
+### ParameterExpression : ParsedExpression
+- identifier : string
+
+### BoundExpression : ParsedExpression
+BoundExpression is an intermediate dummy class used by the binder. It is a ParsedExpression but holds an Expression.
+It represents a successfully bound expression. It is used in the Binder to prevent re-binding of already bound parts
+when dealing with subqueries.
+- expr : Expression
+
+### CaseExpression : ParsedExpression
+represents a CASE expression
+- case_checks: CaseCheck[]
+- else_expr : ParsedExpression
+
+### PositionalReferenceExpression : ParsedExpression
+`SELECT Place
+FROM Locations
+ORDER BY Place COLLATE Traditional_Spanish_ci_ai ASC;`
+- index : idx_t
+
+### CastExpression : ParsedExpression 
+`SELECT CAST(25.65 AS int);`
+`SELECT TRY_CAST(112233.4455 AS int) AS Result;`
+- child : ParsedExpression 
+- cast_type : LogicalType (the type to cast to)
+- try_cast : bool (wheter or not this is a try_cast expression)
+
+### CollateExpression : ParsedExpression 
+`SELECT Place
+FROM Locations
+ORDER BY Place COLLATE Traditional_Spanish_ci_ai ASC;`
+- child : ParsedExpression (the child of the cast expression)
+- collation : string 
+
+### ConjunctionExpression : ParsedExpression 
+conjunction (AND/OR)
+- children : ParsedExpression[]
+
+### DefaultExpression : ParsedExpression 
+Represents the default value of a column
+
+### WindowExpression : ParsedExpression
+[overview](https://www.geeksforgeeks.org/window-functions-in-sql/)
+- catalog : string 
+- schema : string
+- function_name: string
+- children : ParsedExpression[]
+- positions : ParsedExpression[]
+- orders : OrderByNode[]
+- filter_expr : ParsedExpression
+- ignore_nulls : bool 
+- distinct : bool
+- start : WindowBoundary
+- end : WindowBoundary
+- exclude_clause : WindowExcludeMode
+- start_expr : ParsedExpression 
+- end_expr : ParsedExpression 
+- offset_expr : ParsedExpression 
+- default_expr : ParsedExpression
+- arg_orders : OderByNode[]
+### FunctionExpression : ParsedExpression 
+- catalog : string (catalog of the function)
+- schema : string (schema of the function)
+- function_name : string (function name)
+- is_operator : bool (whether or not function is an operator)
+- children: ParsedExpression[] (list of arguments to the function)
+- distinct : bool (Whether or not the aggregate function is distinct, only used for aggregates)
+- filter : ParsedExpression (Expression representing a filter, only used for aggregates)
+- order_bys : OrderModifier (Modifier representing an ORDER BY, only used for aggregates)
+- export_state: bool (whether this function should export its state or not)
+## GroupByNode
+- group_expressions : ParsedExpression[] 
+- grouping_sets : set<idx_t>[]
+
+
+
+
+[Official overview](https://duckdb.org/docs/stable/internals/overview.html)
