@@ -46,7 +46,8 @@
 }
 
 %define api.token.prefix {TOK_}
-
+//TODO check if int?
+%token <int> ICONST
 %token <uint64_t>	INTEGER_VALUE	"integer_value"
 %token <double>		FLOAT_VALUE	"float_value"
 %token <std::string>	IDENTIFIER	"identifier"
@@ -421,7 +422,7 @@ a_expr:
  */
 c_expr: 
     columnref
-    //TODO | AexprConst
+    | AexprConst
     //TODO | PARAM opt_indirection
     //TODO| LP a_expr RP opt_indirection
     //TODO | case_expr
@@ -548,7 +549,15 @@ name_list:
 name: ColId;
 attr_name: ColLabel;
 
-
+/*
+ * Constants
+ */
+ //TODO Add missing AexprConst rules
+AexprConst: 
+    Iconst
+;
+Iconst:	
+    ICONST									{ };
 // ALLL
 // stmt:
 //     SelectStatement
