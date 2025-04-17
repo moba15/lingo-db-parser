@@ -1,1 +1,1 @@
-select matrNr from hoeren, vorlesungen
+select tab.*,aoiusdhfoi,hsd.* from nice as t, test as b where b<12
