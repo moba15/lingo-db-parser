@@ -77,14 +77,16 @@
 #if defined GCC_VERSION && 900 <= GCC_VERSION
 # pragma GCC diagnostic ignored "-Wuseless-cast"
 #endif
+
+
 %}
 
 %option noyywrap nounput noinput batch debug
 
 %{
   // A number symbol corresponding to the value in S.
-  lingodb_parser::parser::symbol_type
-  make_NUMBER (const std::string &s, const lingodb_parser::parser::location_type& loc);
+
+  
 %}
 
 
@@ -106,48 +108,48 @@ identifier      {ident_start}{ident_cont}*
 %%
 %{
   // A handy shortcut to the location held by the driver.
-  lingodb_parser::location& loc = drv.location;
+  lingodb::location& loc = drv.location;
   // Code run each time yylex is called.
   loc.step ();
 %}
-"("             { return lingodb_parser::parser::make_LP(loc); }
-")"             { return lingodb_parser::parser::make_RP(loc); }
-"["             { return lingodb_parser::parser::make_LB(loc); }
-"]"             { return lingodb_parser::parser::make_RB(loc); }
-"."             { return lingodb_parser::parser::make_DOT(loc); }
-","             { return lingodb_parser::parser::make_COMMA(loc); }
-";"             { return lingodb_parser::parser::make_SEMICOLON(loc); }
-"+"             { return lingodb_parser::parser::make_PLUS(loc); }
-"-"             { return lingodb_parser::parser::make_MINUS(loc); }
-"/"             { return lingodb_parser::parser::make_SLASH(loc); }
-"*"             { return lingodb_parser::parser::make_STAR(loc); }
-"="             { return lingodb_parser::parser::make_EQUAL(loc); }
-"<>"            { return lingodb_parser::parser::make_NOT_EQUAL(loc); }
-"<="            { return lingodb_parser::parser::make_LESS_EQUAL(loc); }
-"<"             { return lingodb_parser::parser::make_LESS(loc); }
-">="            { return lingodb_parser::parser::make_GREATER_EQUAL(loc); }
-">"             { return lingodb_parser::parser::make_GREATER(loc); }
-"||"            { return lingodb_parser::parser::make_CONCAT(loc); }
-"#"             { return lingodb_parser::parser::make_YYEOF(loc);}
-all             { return lingodb_parser::parser::make_ALL(loc); }
-as              { return lingodb_parser::parser::make_AS(loc);}
+"("             { return lingodb::parser::make_LP(loc); }
+")"             { return lingodb::parser::make_RP(loc); }
+"["             { return lingodb::parser::make_LB(loc); }
+"]"             { return lingodb::parser::make_RB(loc); }
+"."             { return lingodb::parser::make_DOT(loc); }
+","             { return lingodb::parser::make_COMMA(loc); }
+";"             { return lingodb::parser::make_SEMICOLON(loc); }
+"+"             { return lingodb::parser::make_PLUS(loc); }
+"-"             { return lingodb::parser::make_MINUS(loc); }
+"/"             { return lingodb::parser::make_SLASH(loc); }
+"*"             { return lingodb::parser::make_STAR(loc); }
+"="             { return lingodb::parser::make_EQUAL(loc); }
+"<>"            { return lingodb::parser::make_NOT_EQUAL(loc); }
+"<="            { return lingodb::parser::make_LESS_EQUAL(loc); }
+"<"             { return lingodb::parser::make_LESS(loc); }
+">="            { return lingodb::parser::make_GREATER_EQUAL(loc); }
+">"             { return lingodb::parser::make_GREATER(loc); }
+"||"            { return lingodb::parser::make_CONCAT(loc); }
+"#"             { return lingodb::parser::make_YYEOF(loc);}
+all             { return lingodb::parser::make_ALL(loc); }
+as              { return lingodb::parser::make_AS(loc);}
 
-from            { return lingodb_parser::parser::make_FROM(loc); }
+from            { return lingodb::parser::make_FROM(loc); }
 
-where           { return lingodb_parser::parser::make_WHERE(loc); }
+where           { return lingodb::parser::make_WHERE(loc); }
 
-join            { return lingodb_parser::parser::make_JOIN(loc); }
+join            { return lingodb::parser::make_JOIN(loc); }
 
-on              {return lingodb_parser::parser::make_ON(loc);}
+on              {return lingodb::parser::make_ON(loc);}
 
-select          { return lingodb_parser::parser::make_SELECT(loc); }
+select          { return lingodb::parser::make_SELECT(loc); }
 
-<<EOF>>    return lingodb_parser::parser::make_YYEOF (loc);
+<<EOF>>    return lingodb::parser::make_YYEOF (loc);
 {identifier}    {
                     std::string ident(yytext);
                     std::transform(ident.begin(), ident.end(), ident.begin(),
                         [](unsigned char c){ return std::tolower(c); });
-                    return lingodb_parser::parser::make_IDENTIFIER(std::move(ident), loc);
+                    return lingodb::parser::make_IDENTIFIER(std::move(ident), loc);
                 }
 {decinteger}	{
 				    return lingodb::parser::make_INTEGER_VALUE(std::stoul(yytext), loc);

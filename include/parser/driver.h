@@ -4,7 +4,7 @@
 #include "parser/ast/nodes/nodes.h"
 #include "parser/ast/nodes/select.h"
 # define YY_DECL \
-lingodb_parser::parser::symbol_type yylex (driver& drv)
+lingodb::parser::symbol_type yylex (driver& drv)
 // ... and declare it for the parser's sake.
 YY_DECL;
 
@@ -21,7 +21,7 @@ public:
 	int parse (const std::string& f);
 	void scan_begin ();
 	void scan_end ();
-	lingodb_parser::location location;
+	lingodb::location location;
 	std::string file;
 	bool trace_scanning;
 	bool trace_parsing;
