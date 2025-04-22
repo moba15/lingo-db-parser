@@ -149,6 +149,9 @@ select          { return lingodb_parser::parser::make_SELECT(loc); }
                         [](unsigned char c){ return std::tolower(c); });
                     return lingodb_parser::parser::make_IDENTIFIER(std::move(ident), loc);
                 }
+{decinteger}	{
+				    return lingodb::parser::make_INTEGER_VALUE(std::stoul(yytext), loc);
+			    }
 %%
 
 
