@@ -23,6 +23,7 @@ add_library(lingo_db_parser
         parsed_expression/conjunction_expression.cpp
 
         tableref/basetableref.cpp
+        tableref/joinref.cpp
 
         ${BISON_parser_OUTPUTS}
         ${FLEX_lexer_OUTPUTS}
