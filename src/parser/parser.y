@@ -188,7 +188,7 @@
 
 %type<std::shared_ptr<lingodb::ast::ColumnRefExpression>> columnref
 
-%type<std::shared_ptr<lingodb::ast::TableRef>> from_clause table_ref from_list
+%type<std::shared_ptr<lingodb::ast::TableRef>> from_clause table_ref from_list joined_table
 
 %type<std::string> ColId ColLabel indirection attr_name indirection_el qualified_name relation_expr alias_clause opt_alias_clause
 
@@ -353,7 +353,7 @@ table_ref:
         $$ = tableref;
 
     }
-    | joined_table
+    | joined_table { $$ = $1;}
     | LP joined_table RP alias_clause
     | joined_table opt_alias_clause
 
@@ -376,10 +376,17 @@ table_ref:
  * in common. We'll collect columns during the later transformations.
  */
 joined_table: 
-    LP joined_table RP 
+    LP joined_table RP {$$=$2;}
     | table_ref CROSS JOIN table_ref
     | table_ref join_type JOIN table_ref join_qual
-    | table_ref JOIN table_ref join_qual
+    | table_ref[left] JOIN table_ref[right] join_qual 
+    {
+        //TODO find out correct JoinCondType
+        auto join = mkNode<lingodb::ast::JoinRef>(@$, lingodb::ast::JoinType::INNER, lingodb::ast::JoinCondType::REGULAR);
+        join->left = $left;
+        join->right = $right;
+        $$ = join;
+    }
     | table_ref NATURAL join_type JOIN table_ref
     | table_ref NATURAL JOIN table_ref
     ;
