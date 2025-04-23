@@ -132,15 +132,26 @@ identifier      {ident_start}{ident_cont}*
 "||"            { return lingodb::parser::make_CONCAT(loc); }
 "#"             { return lingodb::parser::make_YYEOF(loc);}
 all             { return lingodb::parser::make_ALL(loc); }
+and             { return lingodb::parser::make_AND(loc);}
 as              { return lingodb::parser::make_AS(loc);}
 
 from            { return lingodb::parser::make_FROM(loc); }
+full            { return lingodb::parser::make_FULL(loc); }
+inner            { return lingodb::parser::make_INNER_P(loc); }
+
+left             { return lingodb::parser::make_LEFT(loc); }
+
+not             { return lingodb::parser::make_NOT(loc); }
 
 where           { return lingodb::parser::make_WHERE(loc); }
 
 join            { return lingodb::parser::make_JOIN(loc); }
 
-on              {return lingodb::parser::make_ON(loc);}
+right           { return lingodb::parser::make_RIGHT(loc); }
+
+on              { return lingodb::parser::make_ON(loc); }
+or              { return lingodb::parser::make_OR(loc); }
+outer           { return lingodb::parser::make_OUTER_P(loc); }
 
 select          { return lingodb::parser::make_SELECT(loc); }
 

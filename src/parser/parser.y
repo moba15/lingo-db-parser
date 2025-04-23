@@ -13,11 +13,14 @@
 %code requires {
   # include <string>
   #include <iostream>
-  #include "parser/ast/ast.h"
   #include <memory>
-  #include "parser/ast/nodes/select.h"
-  #include "parser/ast/nodes/expr.h"
-  #include "parser/ast/nodes/common.h"
+  #include <vector>
+
+  #include "parser/node_factory.h"
+  #include "parser/query_node/list.h"
+  #include "parser/tableref.h"
+  #include "parser/parsed_expression/list.h"
+  #include "parser/tableref/list.h"
   class driver;
 }
 
@@ -31,15 +34,13 @@
 %define parse.lac full
 %locations
 %code {
-  #include "parser/driver.h"
   #include <iostream>
-  #include "parser/ast/ast.h"
-  #include "parser/ast/nodes/select.h"
-  #include "parser/ast/nodes/expr.h"
-  #include "parser/ast/nodes/common.h"
   #include <memory>
+  #include "parser/driver.h"
+  #include "parser/node_factory.h"
+
   #define mkNode drv.nf.node
-  #define mkList drv.nf.list
+  #define mkListShared drv.nf.listShared
   #define mkNotNode drv.nf.notNode
 
 
@@ -179,8 +180,19 @@
 	ZONE
 
 
+%type <std::shared_ptr<lingodb::ast::QueryNode>> stmtmulti select_no_parens select_clause toplevel_stmt stmt simple_select SelectStmt select_with_parens
 
+%type<std::vector<std::shared_ptr<lingodb::ast::ParsedExpression>>> opt_target_list target_list
 
+%type<std::shared_ptr<lingodb::ast::ParsedExpression>> target_el a_expr c_expr where_clause
+
+%type<std::shared_ptr<lingodb::ast::ColumnRefExpression>> columnref
+
+%type<std::shared_ptr<lingodb::ast::TableRef>> from_clause table_ref from_list
+
+%type<std::string> ColId ColLabel indirection attr_name indirection_el qualified_name relation_expr alias_clause opt_alias_clause
+
+%type<std::shared_ptr<lingodb::ast::ConstantExpression>> Iconst AexprConst 
 
 /*%type <nodes::RelExpression>		simple_select
 %type <std::shared_ptr<nodes::Query>> select_no_parens
@@ -194,7 +206,11 @@
 %type <std::shared_ptr<nodes::QualifiedName>>					target_element*/
 //%token <int> NUMBER "number"
 //%nterm <int> exp
-
+%left AND OR
+%left EQUAL GREATER GREATER_EQUAL LESS LESS_EQUAL NOT_EQUAL
+%left PLUS MINUS
+%left STAR SLASH PERCENT
+%left HAT
 
 
 %printer { std::cout << ""; } <*>;
@@ -206,38 +222,39 @@
  * We parse a list of statements, but if there are any special modes first we can add them here
  */
 parse_toplevel: 
-    stmtmulti
+    stmtmulti {drv.result = $stmtmulti;}
     ;
 /*
  * Allows 
  */
+ //TODO Allow multiple
 stmtmulti: 
     stmtmulti SEMICOLON toplevel_stmt {}
-    | toplevel_stmt
+    | toplevel_stmt {$$=$1;}
     ;
 
 toplevel_stmt:
-    stmt
+    stmt {$$=$1;}
   //TODO Add Later  | TransactionStmtLegacy 
   ;
 /*
  * TODO Add the different Statement Types, like Create, Copy etc
 */
 stmt: 
- SelectStmt
+ SelectStmt {$$=$1;}
  ;
 
  SelectStmt: 
-    select_no_parens 
-    | select_with_parens
+    select_no_parens {$$=$select_no_parens;}
+    | select_with_parens {$$=$select_with_parens;}
     ;
 select_with_parens:
-    LP select_no_parens RP
-    | LP select_with_parens RP
+    LP select_no_parens RP {$$=$select_no_parens;}
+    | LP select_with_parens RP {$$=$2;}
     ;
 
 select_no_parens: 
-    simple_select
+    simple_select {$$=$1;}
     //TODO | select_clause sort_clause
     //TODO | select_clause opt_sort_clause for_locking_clause opt_select_limit 
     //TODO | select_clause opt_sort_clause select_limit opt_for_locking_clause
@@ -247,7 +264,7 @@ select_no_parens:
     //TODO | with_clause select_clause opt_sort_clause select_limit opt_for_locking_clause
     ;
 select_clause: 
-    simple_select
+    simple_select {$$ = $1;}
     | select_with_parens 
     ;
 
@@ -285,6 +302,14 @@ simple_select:
     //TODO into_clause 
     from_clause where_clause
     //TODO group_clause having_clause window_clause
+    {
+        auto t = mkNode<lingodb::ast::SelectNode>(@$);
+        t->select_list = $opt_target_list;
+        t->where_clause = $where_clause;
+        t->from_clause = $from_clause;
+
+        $$ = t;
+    }
     //TODO | SELECT distinct_clause target_list into_clause from_clause where_clause group_clause having_clause window_clause
     //TODO | values_clause
     //TODO | TABLE relation_expr
@@ -302,12 +327,12 @@ simple_select:
  *
  *****************************************************************************/
  from_clause:
-			FROM from_list							{  }
+			FROM from_list							{ $$=$from_list; }
 			| %empty								{  }
             ;
 
 from_list: 
-    table_ref 
+    table_ref { $$=$1;}
     | from_list COMMA table_ref
     ;
 
@@ -317,21 +342,59 @@ from_list:
  */
  //TODO add missing rules
 table_ref: 
-    relation_expr opt_alias_clause
+    relation_expr opt_alias_clause 
+    { 
+        //TODO Alias clause
+        //TODO schema 
+        //TODO for now it is very simplyfied
+        lingodb::ast::TableDescription desc{"", "", $relation_expr };
+        auto tableref = mkNode<lingodb::ast::BaseTableRef>(@$, desc);
+        tableref->alias = $opt_alias_clause;
+        $$ = tableref;
 
+    }
+    | joined_table
+    | LP joined_table RP alias_clause
+    | joined_table opt_alias_clause
+
+
+    ;
+/*
+ * It may seem silly to separate joined_table from table_ref, but there is
+ * method in SQL's madness: if you don't do it this way you get reduce-
+ * reduce conflicts, because it's not clear to the parser generator whether
+ * to expect alias_clause after ')' or not.  For the same reason we must
+ * treat 'JOIN' and 'join_type JOIN' separately, rather than allowing
+ * join_type to expand to empty; if we try it, the parser generator can't
+ * figure out when to reduce an empty join_type right after table_ref.
+ *
+ * Note that a CROSS JOIN is the same as an unqualified
+ * INNER JOIN, and an INNER JOIN/ON has the same shape
+ * but a qualification expression to limit membership.
+ * A NATURAL JOIN implicitly matches column names between
+ * tables and the shape is determined by which columns are
+ * in common. We'll collect columns during the later transformations.
+ */
+joined_table: 
+    LP joined_table RP 
+    | table_ref CROSS JOIN table_ref
+    | table_ref join_type JOIN table_ref join_qual
+    | table_ref JOIN table_ref join_qual
+    | table_ref NATURAL join_type JOIN table_ref
+    | table_ref NATURAL JOIN table_ref
     ;
 
 alias_clause: 
     AS ColId LP name_list RP
-    | AS ColId
+    | AS ColId {$$ = $ColId;}
     | ColId LP name_list RP
-    | ColId
+    | ColId {$$ = $ColId;} //TODO Check if correct
     ;
 
 
 
 opt_alias_clause: 
-    alias_clause
+    alias_clause {$$ = $alias_clause;}
     | %empty
     ;
 
@@ -341,8 +404,25 @@ opt_alias_clause_for_join_using:
     ;
 
 
+join_type: 
+    FULL opt_outer
+    | LEFT opt_outer
+    | RIGHT opt_outer 
+    | INNER_P
+    ;
+
+opt_outer: 
+    OUTER_P
+    | %empty
+    ;
+
+join_qual:
+    USING LP name_list RP opt_alias_clause_for_join_using
+    | ON a_expr
+    ;
+
 relation_expr:
-    qualified_name
+    qualified_name {$$ = $qualified_name;}
     | extended_relation_expr
     ;
     
@@ -388,7 +468,7 @@ opt_all_clause:
  */
 
 where_clause: 
-    WHERE a_expr
+    WHERE a_expr {$$=$a_expr;}
     | %empty 
     ;
 /*
@@ -396,7 +476,7 @@ TODO
  * Add missing rules
 */
 a_expr: 
-    c_expr
+    c_expr { $$ = $c_expr;}
    //TODO | a_expr TYPECAST Typename
     //TODO | a-expr COLLATE any_name
     //TODO | a_expr AT TIME ZONE a_expr
@@ -409,22 +489,50 @@ a_expr:
     | a_expr SLASH a_expr
     | a_expr PERCENT a_expr
     | a_expr HAT a_expr
-    | a_expr LESS a_expr
+    | a_expr LESS a_expr 
+    {
+        $$ = mkNode<lingodb::ast::ComparisonExpression>(@$, lingodb::ast::ExpressionType::COMPARE_LESSTHAN, $1, $3 );
+    }
     | a_expr GREATER a_expr
+    {
+        $$ = mkNode<lingodb::ast::ComparisonExpression>(@$, lingodb::ast::ExpressionType::COMPARE_GREATERTHAN, $1, $3 );
+    }
     | a_expr EQUAL a_expr
+    {
+        $$ = mkNode<lingodb::ast::ComparisonExpression>(@$, lingodb::ast::ExpressionType::COMPARE_EQUAL, $1, $3 );
+    }
     | a_expr LESS_EQUAL a_expr
+    {
+        $$ = mkNode<lingodb::ast::ComparisonExpression>(@$, lingodb::ast::ExpressionType::COMPARE_LESSTHANOREQUALTO, $1, $3 );
+    }
     | a_expr GREATER_EQUAL a_expr
+    {
+        $$ = mkNode<lingodb::ast::ComparisonExpression>(@$, lingodb::ast::ExpressionType::COMPARE_GREATERTHANOREQUALTO, $1, $3 );
+    }
     | a_expr NOT_EQUAL a_expr
+    {
+        $$ = mkNode<lingodb::ast::ComparisonExpression>(@$, lingodb::ast::ExpressionType::COMPARE_NOTEQUAL, $1, $3 );
+    }
+    | a_expr AND a_expr 
+    {
+       $$ = mkNode<lingodb::ast::ConjunctionExpression>(@$, lingodb::ast::ExpressionType::CONJUNCTION_AND , $1, $3);
+    }
+    | a_expr OR a_expr
+    {
+        $$ = mkNode<lingodb::ast::ConjunctionExpression>(@$, lingodb::ast::ExpressionType::CONJUNCTION_OR, $1, $3);
+    }
+    | NOT a_expr
     ;
 /*
  * Productions that can be used in both a_expr and b_expr.
  * Note: productions that refer recursively to a_expr or b_expr mostly cannot appear here.
  */
 c_expr: 
-    columnref
-    | AexprConst
+    columnref {$$ = $columnref;}
+    | AexprConst {$$=$1;}
     //TODO | PARAM opt_indirection
-    //TODO| LP a_expr RP opt_indirection
+    //TODO
+    | LP a_expr RP {$$=$2;}//opt_indirection
     //TODO | case_expr
     //TODO | func_expr
     //TODO | select_with_parens
@@ -439,17 +547,17 @@ c_expr:
 
 
 columnref: 
-    ColId
-    | ColId indirection
+    ColId {$$ = mkNode<lingodb::ast::ColumnRefExpression>(@$, $ColId);}
+    | ColId indirection {$$ = mkNode<lingodb::ast::ColumnRefExpression>(@$, $indirection, $ColId);} //TODO Add table name
     ;
-
+//! TODO For what exactly is this here
 indirection:
-    indirection_el
-    | indirection indirection_el
+    indirection_el { $$=$1;}
+    | indirection indirection_el {$$=$1;}
     ;
 indirection_el:
-    DOT attr_name
-    | DOT STAR
+    DOT attr_name {$$=$attr_name;}
+    | DOT STAR //TODO make star
    //TODO | LB a_expr RB
    //TODO | LB opt_slice_bound ':' opt_slice_bound RB
 
@@ -460,18 +568,18 @@ indirection_el:
  *
  *****************************************************************************/
 opt_target_list:
-    target_list
+    target_list { $$=$target_list;}
     | %empty
     ;
 target_list:
-    target_el
-    | target_list COMMA target_el
+    target_el { auto list = mkListShared<lingodb::ast::ParsedExpression>(); list.emplace_back($target_el); $$=list;}
+    | target_list[list] COMMA target_el { $list.emplace_back($target_el); $$=$list;}
     ;
 target_el:
-    a_expr AS ColLabel
-    | a_expr BareColLabel
-    | a_expr
-    | STAR 
+    a_expr AS ColLabel {}
+    | a_expr BareColLabel {}
+    | a_expr { $$=$a_expr;}
+    | STAR {  $$ =mkNode<lingodb::ast::StarExpression>(@$,"");  }
     ;
 
 
@@ -491,7 +599,7 @@ target_el:
  */
  
 ColId:
-    IDENTIFIER
+    IDENTIFIER {$$=$1;}
    //TODO | unreserved_keyword
    //TODO | col_name_keyword
    ;
@@ -499,7 +607,7 @@ ColId:
  * This presently includes *all* Postgres keywords.
  */
 ColLabel:
-    IDENTIFIER									{  }
+    IDENTIFIER									{ $$=$1; }
 	//TODO | unreserved_keyword					{ }
 	//TODO | col_name_keyword						{ }
 	//TODO | type_func_name_keyword				{ }
@@ -539,7 +647,7 @@ qualified_name_list:
  * which may contain subscripts, and reject that case in the C code.
  */
 qualified_name:
-    ColId
+    ColId { $$=$1;}
     | ColId indirection
     ;
 name_list:
@@ -547,17 +655,17 @@ name_list:
     | name_list COMMA name
     ;
 name: ColId;
-attr_name: ColLabel;
+attr_name: ColLabel {$$=$1;};
 
 /*
  * Constants
  */
  //TODO Add missing AexprConst rules
 AexprConst: 
-    Iconst
+    Iconst { $$=$1;}
 ;
 Iconst:	
-    ICONST									{ };
+    ICONST	{ auto t = mkNode<lingodb::ast::ConstantExpression>(@$); t->iVal=$1; $$=t;  };
 // ALLL
 // stmt:
 //     SelectStatement
